@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f0f0f;
+            color: #f5f5f5;
+            padding: 30px 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-family: 'Playfair Display', serif; color: #d4af37; margin-bottom: 30px; font-size: 32px; }
+        h2 { font-family: 'Playfair Display', serif; color: #f5f5f5; margin: 30px 0 20px; font-size: 24px; border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 10px; }
+        
+        .controls, .qr-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+        }
+        .qr-section { text-align: center; }
+        .qr-section img { max-width: 200px; margin: 20px 0; border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.3); }
+        
+        .toggle-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .toggle-btn.active { background: #d4af37; color: #0a0a0a; }
+        .toggle-btn.inactive { background: rgba(255,255,255,0.1); color: #aaa; border: 1px solid rgba(255,255,255,0.2); }
+        .toggle-btn:hover { transform: translateY(-2px); }
+        
+        .status { margin-top: 15px; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px; }
+        .status.visible { background: rgba(39, 174, 96, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+        .status.hidden { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+        .photo-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .photo-card:hover { border-color: rgba(212, 175, 55, 0.4); }
+        .photo-card img { width: 100%; height: 250px; object-fit: cover; }
+        .photo-info { padding: 20px; }
+        .photo-info h3 { color: #d4af37; font-size: 16px; margin-bottom: 5px; }
+        .photo-info p { color: #888; font-size: 13px; margin-bottom: 15px; }
+        .photo-actions { display: flex; gap: 10px; }
+        .photo-actions button {
+            flex: 1; padding: 10px; border: none; border-radius: 6px;
+            cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s;
+        }
+        .btn-visible { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+        .btn-visible:hover { background: #2ecc71; color: #0a0a0a; }
+        .btn-hidden { background: rgba(255, 255, 255, 0.1); color: #aaa; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-hidden:hover { background: rgba(255,255,255,0.2); color: white; }
+        .btn-delete { background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+        .btn-delete:hover { background: #e74c3c; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Panel de Administración</h1>
+
+        <div class="qr-section">
+            <h2>Código QR para Invitados</h2>
+            <img id="qrCode" alt="QR Code">
+            <p style="color: #888;">Comparte este código con los invitados</p>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-top: 0; border: none;">Control de Visibilidad Global</h2>
+            <button id="toggleBtn" class="toggle-btn" onclick="toggleVisibilidad()">Activar Galería Pública</button>
+            <div id="status" class="status hidden">Galería OCULTA - Los invitados no pueden ver las fotos</div>
+        </div>
+
+        <h2>Todas las Fotos</h2>
+        <div id="photosGrid" class="photos-grid"></div each>
+    </div>
+
+    <script>
+        let fotosVisibles = false;
+
+        async function cargarQR() {
+            try {
+                const response = await fetch('/qr');
+                const data = await response.json();
+                document.getElementById('qrCode').src = data.qr;
+            } catch (err) { console.error(err); }
+        }
+
+        async function cargarEstado() {
+            try {
+                const response = await fetch('/api/visibilidad');
+                const data = await response.json();
+                fotosVisibles = data.fotos_visibles;
+                actualizarUI();
+            } catch (err) { console.error(err); }
+        }
+
+        function actualizarUI() {
+            const btn = document.getElementById('toggleBtn');
+            const status = document.getElementById('status');
+            if (fotosVisibles) {
+                btn.textContent = 'Desactivar Galería Pública';
+                btn.className = 'toggle-btn active';
+                status.textContent = 'Galería VISIBLE - Los invitados pueden ver las fotos';
+                status.className = 'status visible';
+            } else {
+                btn.textContent = 'Activar Galería Pública';
+                btn.className = 'toggle-btn inactive';
+                status.textContent = 'Galería OCULTA - Los invitados no pueden ver las fotos';
+                status.className = 'status hidden';
+            }
+        }
+
+        async function toggleVisibilidad() {
+            fotosVisibles = !fotosVisibles;
+            try {
+                await fetch('/api/admin/visibilidad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visible: fotosVisibles })
+                });
+                actualizarUI();
+            } catch (err) {
+                alert('Error actualizando');
+                fotosVisibles = !fotosVisibles;
+            }
+        }
+
+        async function cargarFotos() {
+            try {
+                const response = await fetch('/api/admin/fotos');
+                const data = await response.json();
+                const grid = document.getElementById('photosGrid');
+                
+                if (data.fotos.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666; padding: 40px;">No hay fotos aún</p>';
+                    return;
+                }
+
+                grid.innerHTML = data.fotos.map(foto => `
+                    <div class="photo-card">
+                        <img src="${foto.imagen}" alt="Foto">
+                        <div class="photo-info">
+                            <h3>${foto.invitado_nombre}</h3>
+                            <p>${new Date(foto.fecha_creacion).toLocaleString()}</p>
+                            <div class="photo-actions">
+                                <button class="${foto.visible ? 'btn-hidden' : 'btn-visible'}" onclick="toggleFotoVisibilidad('${foto.id}', ${!foto.visible})">
+                                    ${foto.visible ? 'Ocultar' : 'Mostrar'}
+                                </button>
+                                <button class="btn-delete" onclick="eliminarFoto('${foto.id}')">Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function toggleFotoVisibilidad(fotoId, visible) {
+            try {
+                await fetch(`/api/admin/foto/${fotoId}/visibilidad`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visible })
+                });
+                cargarFotos();
+            } catch (err) { alert('Error actualizando'); }
+        }
+
+        async function eliminarFoto(fotoId) {
+            if (!confirm('¿Eliminar esta foto permanentemente?')) return;
+            try {
+                await fetch(`/api/foto/${fotoId}`, { method: 'DELETE' });
+                cargarFotos();
+            } catch (err) { alert('Error eliminando'); }
+        }
+
+        cargarQR();
+        cargarEstado();
+        cargarFotos();
+        setInterval(cargarFotos, 10000);
+    </script>
+</body>
+</html>

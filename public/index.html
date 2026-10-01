@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido al Evento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+            color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #0a0a0a 100%);
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            color: #d4af37;
+            font-size: 32px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        p { color: #aaa; margin-bottom: 30px; font-weight: 300; }
+        input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        input:focus {
+            outline: none;
+            border-color: #d4af37;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        input::placeholder { color: #666; }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #d4af37 0%, #b8962e 100%);
+            color: #0a0a0a;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3); }
+        button:active { transform: translateY(0); }
+        .error { color: #ff6b6b; margin-top: 15px; font-size: 14px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Captura el Momento</h1>
+        <p>Ingresa tu nombre para comenzar a fotografiar</p>
+        <input type="text" id="nombre" placeholder="Tu nombre completo" autocomplete="off">
+        <button onclick="registrar()">Ingresar</button>
+        <div class="error" id="error"></div>
+    </div>
+
+    <script>
+        async function registrar() {
+            const nombre = document.getElementById('nombre').value.trim();
+            const errorDiv = document.getElementById('error');
+            if (!nombre) {
+                errorDiv.textContent = 'Por favor, ingresa tu nombre';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            try {
+                const response = await fetch('/api/registro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('invitado', JSON.stringify(data.invitado));
+                    window.location.href = '/camera.html';
+                } else {
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Error de conexión';
+                errorDiv.style.display = 'block';
+            }
+        }
+        document.getElementById('nombre').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') registrar();
+        });
+    </script>
+</body>
+</html>
