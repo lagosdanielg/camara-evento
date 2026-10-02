@@ -7,18 +7,12 @@ const { conectarDB, Invitado, Foto, Config } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configurar Cloudinary
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// === AGREGA ESTA LÍNEA PARA DIAGNÓSTICO ===
-console.log('🔍 Cloud Name leído:', process.env.CLOUDINARY_CLOUD_NAME);
-// ==========================================
-
-// Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
@@ -67,7 +61,8 @@ app.post('/api/foto', async (req, res) => {
         const nuevaFoto = await Foto.create({
             invitado_id,
             imagen_url: result.secure_url,
-            imagen_public_id: result.public_id
+            imagen_public_id: result.public_id,
+            visible: false // Por defecto no visible hasta que el admin lo autorice
         });
         res.json({ success: true, foto_id: nuevaFoto._id });
     } catch (err) {
@@ -117,13 +112,21 @@ app.get('/api/admin/fotos', async (req, res) => {
     }
 });
 
-// Panel admin - Cambiar visibilidad global
+// ✨ PANEL ADMIN: Cambiar visibilidad global (AHORA APRUEBA TODAS LAS FOTOS)
 app.post('/api/admin/visibilidad', async (req, res) => {
     const { visible } = req.body;
     try {
         await Config.findByIdAndUpdate('global', { fotos_visibles: visible });
+        
+        // Si el admin activa la galería, hacemos visibles TODAS las fotos automáticamente
+        if (visible) {
+            await Foto.updateMany({}, { visible: true });
+            console.log('✅ Galería activada: Todas las fotos marcadas como visibles');
+        }
+        
         res.json({ success: true });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ error: 'Error actualizando visibilidad' });
     }
 });
@@ -149,29 +152,36 @@ app.get('/api/visibilidad', async (req, res) => {
     }
 });
 
-// Galería pública
+// ✨ GALERÍA PÚBLICA: Con diagnósticos
 app.get('/api/galeria', async (req, res) => {
     try {
         const config = await Config.findById('global');
+        console.log('🔍 Galería solicitada. Estado global:', config.fotos_visibles);
+        
         if (!config.fotos_visibles) {
             return res.json({ fotos: [], visible: false });
         }
-        const fotos = await Foto.find({ visible: true }).populate('invitado_id', 'nombre').sort({ fecha_creacion: -1 });
+
+        const fotos = await Foto.find({ visible: true })
+            .populate('invitado_id', 'nombre')
+            .sort({ fecha_creacion: -1 });
+        
+        console.log(`📸 Fotos encontradas y enviadas a la galería: ${fotos.length}`);
+
         const fotosFormateadas = fotos.map(f => ({
             id: f._id,
             imagen: f.imagen_url,
             fecha_creacion: f.fecha_creacion,
             invitado_nombre: f.invitado_id ? f.invitado_id.nombre : 'Desconocido'
         }));
+        
         res.json({ fotos: fotosFormateadas, visible: true });
     } catch (err) {
+        console.error('❌ Error en galería:', err);
         res.status(500).json({ error: 'Error obteniendo galería' });
     }
 });
 
-// ============================================
-// INICIAR SERVIDOR (Esto va SOLO en server.js)
-// ============================================
 async function iniciar() {
     await conectarDB();
     app.listen(PORT, () => {
