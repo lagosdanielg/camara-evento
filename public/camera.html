@@ -12,73 +12,106 @@
             background: #0a0a0a;
             color: #f5f5f5;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .header {
             background: rgba(10, 10, 10, 0.9);
             backdrop-filter: blur(10px);
-            padding: 20px;
+            padding: 15px;
             text-align: center;
             position: sticky;
             top: 0;
             z-index: 100;
             border-bottom: 1px solid rgba(212, 175, 55, 0.2);
         }
-        .header h2 { font-family: 'Playfair Display', serif; color: #d4af37; font-size: 20px; }
+        .header h2 { font-family: 'Playfair Display', serif; color: #d4af37; font-size: 18px; }
+        
         .camera-container {
             position: relative;
             width: 100%;
-            max-width: 500px;
-            margin: 20px auto;
+            max-width: 600px;
+            margin: 15px auto;
             background: #000;
             border-radius: 16px;
             overflow: hidden;
             border: 1px solid rgba(212, 175, 55, 0.3);
+            /* Ajuste de tamaño inteligente para móviles */
+            aspect-ratio: 3/4; 
+            max-height: 65vh;
         }
-        video { width: 100%; display: block; }
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; /* Hace que la imagen llene el espacio sin deformarse */
+            display: block; 
+        }
         canvas { display: none; }
-        .controls { display: flex; justify-content: center; padding: 30px 20px; }
-        .capture-btn {
+        
+        .controls { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            gap: 30px; 
+            padding: 20px; 
+            margin-top: auto; /* Empuja los controles hacia abajo */
+        }
+        .btn-control {
             background: transparent;
-            border: 3px solid #d4af37;
+            border: 2px solid rgba(212, 175, 55, 0.5);
             color: #d4af37;
-            width: 75px;
-            height: 75px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
-            font-size: 28px;
+            font-size: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
+        }
+        .btn-control:active { transform: scale(0.9); background: rgba(212, 175, 55, 0.1); }
+        
+        .capture-btn {
+            background: transparent;
+            border: 3px solid #d4af37;
+            width: 75px;
+            height: 75px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
             position: relative;
         }
         .capture-btn::after {
             content: '';
             position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
             width: 55px;
             height: 55px;
             background: #d4af37;
             border-radius: 50%;
             transition: all 0.2s;
         }
-        .capture-btn:active::after { transform: scale(0.85); }
+        .capture-btn:active::after { transform: translate(-50%, -50%) scale(0.85); }
         .capture-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .gallery { padding: 20px; max-width: 500px; margin: 0 auto; }
+        
+        .gallery { padding: 20px; max-width: 600px; margin: 0 auto; width: 100%; }
         .gallery h3 {
             font-family: 'Playfair Display', serif;
             color: #d4af37;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
-            font-size: 22px;
+            font-size: 20px;
         }
         .photo-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
         }
         .photo-item {
             position: relative;
-            border-radius: 12px;
+            border-radius: 10px;
             overflow: hidden;
             aspect-ratio: 1;
             border: 1px solid rgba(255,255,255,0.1);
@@ -86,19 +119,17 @@
         .photo-item img { width: 100%; height: 100%; object-fit: cover; }
         .delete-btn {
             position: absolute;
-            top: 6px; right: 6px;
+            top: 4px; right: 4px;
             background: rgba(0,0,0,0.7);
             color: #ff6b6b;
             border: 1px solid rgba(255,107,107,0.3);
             border-radius: 50%;
-            width: 28px; height: 28px;
+            width: 26px; height: 26px;
             cursor: pointer;
             font-size: 18px;
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
         }
-        .delete-btn:hover { background: #ff6b6b; color: white; }
-        .no-photos { text-align: center; color: #666; padding: 40px; font-style: italic; }
+        .no-photos { text-align: center; color: #666; padding: 30px; font-style: italic; font-size: 14px; }
         .flash {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: white; opacity: 0; pointer-events: none; z-index: 1000;
@@ -118,7 +149,9 @@
     </div>
 
     <div class="controls">
+        <button class="btn-control" onclick="toggleCamera()" title="Cambiar cámara">🔄</button>
         <button class="capture-btn" onclick="capturarFoto()"></button>
+        <div style="width: 50px;"></div> <!-- Espaciador para centrar el botón de captura -->
     </div>
 
     <div class="gallery">
@@ -131,6 +164,7 @@
     <script>
         let invitado = null;
         let stream = null;
+        let facingMode = 'environment'; // 'environment' = trasera, 'user' = frontal (selfie)
 
         const invitadoData = localStorage.getItem('invitado');
         if (!invitadoData) {
@@ -143,14 +177,28 @@
         }
 
         async function iniciarCamara() {
+            // Detener stream anterior si existe
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    video: { 
+                        facingMode: facingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 }
+                    } 
                 });
                 document.getElementById('video').srcObject = stream;
             } catch (err) {
                 alert('Error al acceder a la cámara: ' + err.message);
             }
+        }
+
+        function toggleCamera() {
+            facingMode = facingMode === 'environment' ? 'user' : 'environment';
+            iniciarCamara();
         }
 
         async function capturarFoto() {

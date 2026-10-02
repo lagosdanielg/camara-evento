@@ -20,48 +20,52 @@
             font-family: 'Playfair Display', serif;
             color: #d4af37;
             text-align: center;
-            margin-bottom: 40px;
-            font-size: 36px;
-            letter-spacing: 2px;
+            margin-bottom: 30px;
+            font-size: 28px;
+            letter-spacing: 1px;
         }
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        @media (min-width: 768px) {
+            .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 25px; }
+            h1 { font-size: 36px; margin-bottom: 40px; }
         }
         .photo-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(212, 175, 55, 0.15);
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
             transition: all 0.4s ease;
         }
         .photo-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
             border-color: rgba(212, 175, 55, 0.5);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
         }
         .photo-card img {
             width: 100%;
-            height: 320px;
+            aspect-ratio: 1;
             object-fit: cover;
             display: block;
         }
         .photo-info {
-            padding: 20px;
+            padding: 15px;
             text-align: center;
             border-top: 1px solid rgba(255,255,255,0.05);
         }
-        .photo-info h3 { color: #d4af37; font-size: 18px; margin-bottom: 5px; font-family: 'Playfair Display', serif; }
-        .photo-info p { color: #888; font-size: 13px; font-weight: 300; }
+        .photo-info h3 { color: #d4af37; font-size: 16px; margin-bottom: 4px; font-family: 'Playfair Display', serif; }
+        .photo-info p { color: #888; font-size: 12px; font-weight: 300; }
         .no-photos {
             text-align: center;
             color: #666;
-            font-size: 20px;
-            padding: 100px 20px;
+            font-size: 18px;
+            padding: 80px 20px;
             font-family: 'Playfair Display', serif;
         }
-        .loading { text-align: center; color: #d4af37; font-size: 18px; padding: 50px; }
+        .loading { text-align: center; color: #d4af37; font-size: 16px; padding: 50px; }
     </style>
 </head>
 <body>
@@ -75,7 +79,8 @@
     <script>
         async function cargarGaleria() {
             try {
-                const response = await fetch('/api/galeria');
+                // Agregamos ?t= para evitar que el navegador del celular guarde en caché la respuesta
+                const response = await fetch('/api/galeria?t=' + Date.now());
                 const data = await response.json();
                 const gallery = document.getElementById('gallery');
                 
@@ -86,10 +91,10 @@
 
                 gallery.innerHTML = data.fotos.map(foto => `
                     <div class="photo-card">
-                        <img src="${foto.imagen_url}" alt="Foto" loading="lazy">
+                        <img src="${foto.imagen}" alt="Foto" loading="lazy">
                         <div class="photo-info">
                             <h3>${foto.invitado_nombre}</h3>
-                            <p>${new Date(foto.fecha_creacion).toLocaleString('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute:'2-digit' })}</p>
+                            <p>${new Date(foto.fecha_creacion).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}</p>
                         </div>
                     </div>
                 `).join('');
@@ -99,7 +104,8 @@
             }
         }
         cargarGaleria();
-        setInterval(cargarGaleria, 15000);
+        // Actualizar cada 10 segundos
+        setInterval(cargarGaleria, 10000);
     </script>
 </body>
 </html>
