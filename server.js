@@ -28,6 +28,17 @@ app.get('/qr', async (req, res) => {
     }
 });
 
+// Generar QR para la galería pública
+app.get('/qr-galeria', async (req, res) => {
+    const url = `${req.protocol}://${req.get('host')}/gallery.html`;
+    try {
+        const qr = await QRCode.toDataURL(url);
+        res.json({ qr });
+    } catch (err) {
+        res.status(500).json({ error: 'Error generando QR' });
+    }
+});
+
 // Registrar invitado
 app.post('/api/registro', async (req, res) => {
     const { nombre } = req.body;
